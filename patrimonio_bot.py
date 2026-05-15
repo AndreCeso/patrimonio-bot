@@ -5,24 +5,18 @@ Manda alert su Telegram se il prezzo scende sotto le soglie definite.
 """
 
 import os
-import json
 import datetime
 import requests
 import yfinance as yf
 from supabase import create_client
 
-print(">>> [1] Import completati")
-
 # ─── CONFIGURAZIONE ───────────────────────────────────────────────────────────
 
 TELEGRAM_TOKEN   = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
-SUPABASE_URL     = "https://nmzgizjgpyyxyetqvccn.supabase.co"  # hardcoded temporaneo
+SUPABASE_URL     = "https://nmzgizjgpyyxyetqvccn.supabase.co"  # TODO: ripristinare os.environ dopo fix Railway
 SUPABASE_KEY     = os.environ["SUPABASE_KEY"]
 SUPABASE_USER_ID = os.environ["SUPABASE_USER_ID"]
-
-print(">>> [2] Variabili d'ambiente lette")
-print(f">>> SUPABASE_URL = {SUPABASE_URL}")
 
 # ─── PARAMETRI ALERT ──────────────────────────────────────────────────────────
 
@@ -30,64 +24,51 @@ STRUMENTI = {
     "VWCE": {
         "ticker": "VWCE.DE",
         "nome": "Vanguard FTSE All-World (VWCE)",
-        "soglia_1": 99.0,   # TEST — rimettere a -7.0
-        "soglia_2": 50.0,   # TEST — rimettere a -12.0
+        "soglia_1": -7.0,
+        "soglia_2": -12.0,
         "importo_1": 100,
         "importo_2": 200,
     },
     "SGLN": {
         "ticker": "SGLN.MI",
         "nome": "iShares Physical Gold (SGLN)",
-        "soglia_1": 99.0,   # TEST — rimettere a -8.0
-        "soglia_2": 50.0,   # TEST — rimettere a -15.0
+        "soglia_1": -8.0,
+        "soglia_2": -15.0,
         "importo_1": 100,
         "importo_2": 200,
     },
 }
 
-GIORNI_MEDIA       = 200
-GIORNI_MIN_ALERT   = 20
-SOGLIA_LIQUIDITA   = 0      # TEST — rimettere a 15000
+GIORNI_MEDIA     = 200
+GIORNI_MIN_ALERT = 20
+SOGLIA_LIQUIDITA = 15000
 
 # ─── TELEGRAM ─────────────────────────────────────────────────────────────────
 
 def invia_messaggio(testo: str):
-    print(">>> [TG] Invio messaggio Telegram...")
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": testo,
-        "parse_mode": "HTML",
-    }
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": testo, "parse_mode": "HTML"}
     r = requests.post(url, json=payload, timeout=10)
     r.raise_for_status()
-    print(f">>> [TG] Messaggio inviato OK: {testo[:60]}...")
+    print(f">>> [TG] Messaggio inviato: {testo[:60]}...")
 
 # ─── SUPABASE ─────────────────────────────────────────────────────────────────
 
 def get_client():
-    print(">>> [DB] Creo client Supabase...")
-    client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    print(">>> [DB] Client Supabase creato OK")
-    return client
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def carica_dati_utente():
-    print(">>> [DB] Carico dati utente...")
     sb = get_client()
     res = sb.table("patrimonio").select("dati,cfg,storico").eq("user_id", SUPABASE_USER_ID).single().execute()
-    print(f">>> [DB] Dati ricevuti: {res.data is not None}")
     return res.data if res.data else {}
 
 def carica_ultimi_alert(dati_utente: dict) -> dict:
     storico = dati_utente.get("storico") or {}
     if isinstance(storico, list):
         storico = {}
-    ultimi = storico.get("bot_alert", {})
-    print(f">>> [DB] Ultimi alert: {ultimi}")
-    return ultimi
+    return storico.get("bot_alert", {})
 
 def salva_ultimi_alert(ultimi: dict):
-    print(">>> [DB] Salvo ultimi alert su Supabase...")
     sb = get_client()
     res = sb.table("patrimonio").select("storico").eq("user_id", SUPABASE_USER_ID).single().execute()
     storico_attuale = (res.data.get("storico") or {}) if res.data else {}
@@ -95,7 +76,7 @@ def salva_ultimi_alert(ultimi: dict):
         storico_attuale = {}
     storico_attuale["bot_alert"] = ultimi
     sb.table("patrimonio").update({"storico": storico_attuale}).eq("user_id", SUPABASE_USER_ID).execute()
-    print(">>> [DB] Ultimi alert salvati OK")
+    print(">>> [DB] Ultimi alert salvati.")
 
 # ─── CALCOLO PREZZI ───────────────────────────────────────────────────────────
 
@@ -112,7 +93,7 @@ def analizza_strumento(key: str, cfg: dict) -> dict | None:
         elif "No data found" in errore:
             print(f">>> [{key}] ❌ Yahoo Finance: nessun dato trovato per il ticker {ticker}.")
         else:
-            print(f">>> [{key}] ❌ Yahoo Finance: errore sconosciuto — {errore}")
+            print(f">>> [{key}] ❌ Yahoo Finance: errore — {errore}")
         return None
 
     print(f">>> [{key}] Righe scaricate: {len(df)}")
@@ -138,7 +119,7 @@ def analizza_strumento(key: str, cfg: dict) -> dict | None:
         livello = 1
         importo = cfg["importo_1"]
     else:
-        print(f">>> [{key}] Nessuna soglia superata, nessun alert.")
+        print(f">>> [{key}] Nessuna soglia superata, tutto ok.")
         return None
 
     print(f">>> [{key}] ALERT livello {livello}!")
@@ -165,7 +146,7 @@ def costruisci_messaggio(dati: dict, liquidita: float, gap: float) -> str:
         azione = f"👉 Considera acquisto extra <b>€{dati['importo']}</b> su Trade Republic"
         nota   = "Occasione di acquisto extra rispetto al PAC mensile."
 
-    msg = f"""{titolo}
+    return f"""{titolo}
 
 Prezzo oggi:   <b>{dati['prezzo']:.2f}</b>
 Media 200gg:   {dati['media200']:.2f}
@@ -179,8 +160,6 @@ Liquidità:     €{liquidita:,.0f} ✓
 <i>{nota}</i>
 <i>PAC mensile invariato — questo è extra.</i>"""
 
-    return msg
-
 # ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -189,25 +168,21 @@ def main():
     print(f"Patrimonio Alert Bot — {oggi}")
     print(f"{'='*50}\n")
 
-    print(">>> [3] Inizio main()")
-    print(">>> [TG] Invio messaggio di test...")
-    invia_messaggio("🤖 <b>Test bot patrimonio</b>\n\nBot avviato correttamente su Railway!")
-    print(">>> [TG] Messaggio di test inviato OK")
-
+    print(">>> Carico dati utente da Supabase...")
     dati_utente = carica_dati_utente()
     dati      = dati_utente.get("dati", {})
     liquidita = dati.get("liq", 0)
-    print(f">>> [4] Liquidità: €{liquidita:,.0f}")
+    print(f">>> Liquidità: €{liquidita:,.0f}")
 
     if liquidita < SOGLIA_LIQUIDITA:
-        print(f">>> [!] Liquidità sotto soglia (€{liquidita} < €{SOGLIA_LIQUIDITA}). Stop.")
+        print(f">>> ⚠️ Liquidità sotto soglia (€{liquidita:,.0f} < €{SOGLIA_LIQUIDITA:,.0f}). Nessun alert inviato.")
         return
 
-    ultimi_alert = carica_ultimi_alert(dati_utente)
+    ultimi_alert  = carica_ultimi_alert(dati_utente)
     alert_inviati = 0
 
     for key, cfg in STRUMENTI.items():
-        print(f"\n>>> [5] Analizzo {key}...")
+        print(f"\n>>> Analizzo {key}...")
         ultimo = ultimi_alert.get(key)
         if ultimo:
             giorni_passati = (datetime.date.today() - datetime.date.fromisoformat(ultimo)).days
@@ -220,16 +195,13 @@ def main():
             continue
 
         az  = dati.get("az", 0)
-        ob  = dati.get("ob", 0)
         oro = dati.get("or", 0)
-        tot_inv = az + ob + oro
+        tot_inv = az + dati.get("ob", 0) + oro
         cfg_mix = dati_utente.get("cfg", {}).get("mix", {"az": 75, "ob": 10, "or": 15})
         if key == "VWCE":
-            target = tot_inv * (cfg_mix.get("az", 75) / 100)
-            gap = max(target - az, 0)
+            gap = max(tot_inv * (cfg_mix.get("az", 75) / 100) - az, 0)
         else:
-            target = tot_inv * (cfg_mix.get("or", 15) / 100)
-            gap = max(target - oro, 0)
+            gap = max(tot_inv * (cfg_mix.get("or", 15) / 100) - oro, 0)
 
         msg = costruisci_messaggio(risultato, liquidita, gap)
         invia_messaggio(msg)
@@ -238,7 +210,10 @@ def main():
 
     salva_ultimi_alert(ultimi_alert)
 
-    print(f"\n>>> [6] Fine. Alert inviati: {alert_inviati}")
+    if alert_inviati == 0:
+        print("\n>>> Nessun alert da inviare oggi.")
+    else:
+        print(f"\n>>> {alert_inviati} alert inviati.")
 
 if __name__ == "__main__":
     main()
