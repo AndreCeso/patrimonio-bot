@@ -47,7 +47,7 @@ STRUMENTI = {
 
 GIORNI_MEDIA       = 200
 GIORNI_MIN_ALERT   = 20
-SOGLIA_LIQUIDITA   = 15000
+SOGLIA_LIQUIDITA   = 0
 
 # ─── TELEGRAM ─────────────────────────────────────────────────────────────────
 
