@@ -17,7 +17,7 @@ print(">>> [1] Import completati")
 
 TELEGRAM_TOKEN   = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
-SUPABASE_URL     = os.environ["SUPABASE_URL"]
+SUPABASE_URL     = "https://nmzgizjgpyyxyetqvccn.supabase.co"
 SUPABASE_KEY     = os.environ["SUPABASE_KEY"]
 SUPABASE_USER_ID = os.environ["SUPABASE_USER_ID"]
 
