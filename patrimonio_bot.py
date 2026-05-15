@@ -108,7 +108,7 @@ def analizza_strumento(key: str, cfg: dict) -> dict | None:
         print(f">>> [{key}] Dati insufficienti, skip.")
         return None
 
-    close = df["Close"].dropna()
+    close = df["Close"].dropna().squeeze()
     prezzo_oggi = float(close.iloc[-1])
     media200    = float(close.tail(GIORNI_MEDIA).mean())
     scostamento = (prezzo_oggi - media200) / media200 * 100
