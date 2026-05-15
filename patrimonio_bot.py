@@ -17,7 +17,7 @@ print(">>> [1] Import completati")
 
 TELEGRAM_TOKEN   = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
-SUPABASE_URL     = "https://nmzgizjgpyyxyetqvccn.supabase.co"
+SUPABASE_URL     = os.environ["SUPABASE_URL"]
 SUPABASE_KEY     = os.environ["SUPABASE_KEY"]
 SUPABASE_USER_ID = os.environ["SUPABASE_USER_ID"]
 
@@ -30,16 +30,16 @@ STRUMENTI = {
     "VWCE": {
         "ticker": "VWCE.DE",
         "nome": "Vanguard FTSE All-World (VWCE)",
-        "soglia_1": 99.0,
-        "soglia_2": 50.0,
+        "soglia_1": 99.0,   # TEST — rimettere a -7.0
+        "soglia_2": 50.0,   # TEST — rimettere a -12.0
         "importo_1": 100,
         "importo_2": 200,
     },
     "SGLN": {
         "ticker": "SGLN.MI",
         "nome": "iShares Physical Gold (SGLN)",
-        "soglia_1": 99.0,
-        "soglia_2": 50.0,
+        "soglia_1": 99.0,   # TEST — rimettere a -8.0
+        "soglia_2": 50.0,   # TEST — rimettere a -15.0
         "importo_1": 100,
         "importo_2": 200,
     },
@@ -47,7 +47,7 @@ STRUMENTI = {
 
 GIORNI_MEDIA       = 200
 GIORNI_MIN_ALERT   = 20
-SOGLIA_LIQUIDITA   = 0
+SOGLIA_LIQUIDITA   = 0      # TEST — rimettere a 15000
 
 # ─── TELEGRAM ─────────────────────────────────────────────────────────────────
 
@@ -80,6 +80,8 @@ def carica_dati_utente():
 
 def carica_ultimi_alert(dati_utente: dict) -> dict:
     storico = dati_utente.get("storico") or {}
+    if isinstance(storico, list):
+        storico = {}
     ultimi = storico.get("bot_alert", {})
     print(f">>> [DB] Ultimi alert: {ultimi}")
     return ultimi
