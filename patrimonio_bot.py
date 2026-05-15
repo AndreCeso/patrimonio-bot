@@ -91,6 +91,8 @@ def salva_ultimi_alert(ultimi: dict):
     sb = get_client()
     res = sb.table("patrimonio").select("storico").eq("user_id", SUPABASE_USER_ID).single().execute()
     storico_attuale = (res.data.get("storico") or {}) if res.data else {}
+    if isinstance(storico_attuale, list):
+        storico_attuale = {}
     storico_attuale["bot_alert"] = ultimi
     sb.table("patrimonio").update({"storico": storico_attuale}).eq("user_id", SUPABASE_USER_ID).execute()
     print(">>> [DB] Ultimi alert salvati OK")
@@ -174,6 +176,9 @@ def main():
     print(f"{'='*50}\n")
 
     print(">>> [3] Inizio main()")
+    print(">>> [TG] Invio messaggio di test...")
+    invia_messaggio("🤖 <b>Test bot patrimonio</b>\n\nBot avviato correttamente su Railway!")
+    print(">>> [TG] Messaggio di test inviato OK")
 
     dati_utente = carica_dati_utente()
     dati      = dati_utente.get("dati", {})
