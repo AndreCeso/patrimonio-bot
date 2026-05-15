@@ -103,11 +103,25 @@ def analizza_strumento(key: str, cfg: dict) -> dict | None:
     ticker = cfg["ticker"]
     print(f">>> [{key}] Scarico dati Yahoo Finance ({ticker})...")
 
-    df = yf.download(ticker, period=f"{GIORNI_MEDIA + 50}d", progress=False)
+    try:
+        df = yf.download(ticker, period=f"{GIORNI_MEDIA + 50}d", progress=False)
+    except Exception as e:
+        errore = str(e)
+        if "Too Many Requests" in errore or "RateLimit" in errore:
+            print(f">>> [{key}] ❌ Yahoo Finance: limite richieste superato, riprova tra qualche minuto.")
+        elif "No data found" in errore:
+            print(f">>> [{key}] ❌ Yahoo Finance: nessun dato trovato per il ticker {ticker}.")
+        else:
+            print(f">>> [{key}] ❌ Yahoo Finance: errore sconosciuto — {errore}")
+        return None
+
     print(f">>> [{key}] Righe scaricate: {len(df)}")
 
     if df.empty or len(df) < GIORNI_MEDIA:
-        print(f">>> [{key}] Dati insufficienti, skip.")
+        if df.empty:
+            print(f">>> [{key}] ❌ Yahoo Finance: nessun dato ricevuto per {ticker} — possibile rate limit o ticker errato.")
+        else:
+            print(f">>> [{key}] ❌ Yahoo Finance: dati insufficienti — ricevute {len(df)} righe su {GIORNI_MEDIA} necessarie.")
         return None
 
     close = df["Close"].dropna().squeeze()
