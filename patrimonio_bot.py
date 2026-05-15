@@ -60,22 +60,35 @@ def invia_messaggio(testo: str):
 
 # ─── SUPABASE ─────────────────────────────────────────────────────────────────
 
+def get_client():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
 def carica_dati_utente():
-    sb = create_client(SUPABASE_URL, SUPABASE_KEY)
-    res = sb.table("patrimonio").select("dati,cfg").eq("user_id", SUPABASE_USER_ID).single().execute()
+    sb = get_client()
+    res = sb.table("patrimonio").select("dati,cfg,storico").eq("user_id", SUPABASE_USER_ID).single().execute()
     return res.data if res.data else {}
 
-def carica_ultimi_alert():
-    """Legge dal file locale la data degli ultimi alert inviati."""
-    try:
-        with open("ultimi_alert.json", "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
+def carica_ultimi_alert(dati_utente: dict) -> dict:
+    """
+    Legge la data degli ultimi alert dalla colonna 'storico' su Supabase.
+    Usa la chiave 'bot_alert' dentro storico per non interferire con i dati del tracker.
+    """
+    storico = dati_utente.get("storico") or {}
+    return storico.get("bot_alert", {})
 
 def salva_ultimi_alert(ultimi: dict):
-    with open("ultimi_alert.json", "w") as f:
-        json.dump(ultimi, f)
+    """
+    Salva la data degli ultimi alert nella colonna 'storico' su Supabase.
+    Fa un merge parziale per non sovrascrivere gli altri dati in storico.
+    """
+    sb = get_client()
+    # Prima legge lo storico attuale
+    res = sb.table("patrimonio").select("storico").eq("user_id", SUPABASE_USER_ID).single().execute()
+    storico_attuale = (res.data.get("storico") or {}) if res.data else {}
+    # Aggiorna solo la chiave bot_alert
+    storico_attuale["bot_alert"] = ultimi
+    sb.table("patrimonio").update({"storico": storico_attuale}).eq("user_id", SUPABASE_USER_ID).execute()
+    print("[DB] Ultimi alert salvati su Supabase.")
 
 # ─── CALCOLO PREZZI ───────────────────────────────────────────────────────────
 
@@ -159,7 +172,7 @@ def main():
     # carica dati utente da Supabase
     print("Carico dati utente da Supabase...")
     dati_utente = carica_dati_utente()
-    dati   = dati_utente.get("dati", {})
+    dati      = dati_utente.get("dati", {})
     liquidita = dati.get("liq", 0)
     print(f"Liquidità: €{liquidita:,.0f}")
 
@@ -168,8 +181,8 @@ def main():
         print(f"⚠ Liquidità sotto soglia (€{liquidita} < €{SOGLIA_LIQUIDITA}). Nessun alert inviato.")
         return
 
-    # carica ultimi alert
-    ultimi_alert = carica_ultimi_alert()
+    # carica ultimi alert da Supabase (non da file locale)
+    ultimi_alert = carica_ultimi_alert(dati_utente)
 
     alert_inviati = 0
 

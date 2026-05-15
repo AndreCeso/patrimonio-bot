@@ -3,5 +3,4 @@ builder = "NIXPACKS"
 
 [deploy]
 cronSchedule = "0 7 * * *"
-startCommand = "python patrimonio_bot.py"
 restartPolicyType = "never"
